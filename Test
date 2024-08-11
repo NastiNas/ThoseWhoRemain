@@ -193,7 +193,7 @@ local function ItemEsp()
     MedsEsp.FillColor = Color3.fromRGB(255, 0, 0)
     MedsEsp.OutlineColor = Color3.fromRGB(255, 0, 0)
     BWEsp.FillColor = Color3.fromRGB(255, 255, 0)
-    Medsesp.OutlineColor = Color3.fromRGB(255, 255, 0)
+    MedsEsp.OutlineColor = Color3.fromRGB(255, 255, 0)
     MiscEsp.FillColor = Color3.fromRGB(0, 0, 0)
     MiscEsp.OutlineColor = Color3.fromRGB(120,120,120)
 
