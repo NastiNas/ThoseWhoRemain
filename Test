@@ -1,4 +1,9 @@
 local plr = game.Players.LocalPlayer
+local character = plr.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local camera = game:GetService("Workspace").CurrentCamera
+local CurrentCamera = workspace.CurrentCamera
+worldToViewportPoint = CurrentCamera.worldToViewportPoint
 local itemsHolder = game.Workspace.Ignore.Items
 local zombiesHolder = game.Workspace.Entities.Infected
 
@@ -52,6 +57,7 @@ local MiscEsp = Instance.new("Highlight", Items1)
 local ZomEsp = Instance.new("Highlight", Zombies1)
 local PlrEsp = Instance.new("Highlight", Players1)
 
+local DISTANCE_TO_PICKUP = 10 -- Define a constant distance for proximity
 
 local function ReParentByFullName(item)
     local targetParent = nil
@@ -74,7 +80,6 @@ local function ReParentByFullName(item)
 
     if targetParent and item.Parent ~= targetParent then
         if targetParent.Parent then
-
             local success, err = pcall(function()
                 item.Parent = targetParent
             end)
@@ -118,7 +123,7 @@ local function NamePlayer(n)
     local name = Instance.new("BillboardGui", Players2)
 
     name.Name = n.Name
-    name.Adornee = n.Head
+    name.Adornee = n:FindFirstChild("Head")
     name.Size = UDim2.new(4,0,1,0)
     name.SizeOffset = Vector2.new(0,1.5)
     name.AlwaysOnTop = true
@@ -134,16 +139,14 @@ local function NamePlayer(n)
     text.TextColor3 = Color3.new(1, 1, 1) 
 
     text.Text = n.Name
+
 end
 
-
 local function UpdateItemEsp(item)
-
     AmmoEsp.Adornee = nil
     MedsEsp.Adornee = nil
     BWEsp.Adornee = nil
     MiscEsp.Adornee = nil
-
 
     ReParentByFullName(item)
     NameItem(item)
@@ -155,9 +158,7 @@ local function UpdateItemEsp(item)
 end
 
 local function UpdateZombieEsp(n)
-
     ZomEsp.Adornee = nil
-
 
     ReParentByFullName(n)
 
@@ -173,16 +174,99 @@ local function UpdatePlayerEsp(n)
     PlrEsp.Adornee = AllPlrs
 end
 
+-- Define a table to keep track of the original parent and highlight
+local itemOriginalParents = {}
+local itemHighlights = {}
+
+local function fixItemForPickup(item)
+    local highlight = item:FindFirstChildOfClass("Highlight")
+    if not highlight then
+        highlight = Instance.new("Highlight", item)
+    end
+
+    if item.Parent == AllAmmo then
+        highlight.FillColor = Color3.fromRGB(255, 255, 255)
+    elseif item.Parent == AllMeds then
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    elseif item.Parent == AllBarbedWire then
+        highlight.FillColor = Color3.fromRGB(255, 255, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+    elseif item.Parent == AllMisc then
+        highlight.FillColor = Color3.fromRGB(0, 0, 0)
+        highlight.OutlineColor = Color3.fromRGB(120, 120, 120)
+    end
+
+    -- Store the original parent if it's not already stored
+    if not itemOriginalParents[item] then
+        itemOriginalParents[item] = item.Parent
+    end
+
+    -- Reparent the item to the itemsHolder
+    item.Parent = itemsHolder
+end
+
+local function isItemInProximity(item, playerPosition)
+    local itemPosition = item.Box.Position
+    local distance = (playerPosition - itemPosition).magnitude
+
+    return distance <= DISTANCE_TO_PICKUP
+end
+
+local function updateProximity()
+    while true do
+        local playerPosition = plr.Character and plr.Character.PrimaryPart and plr.Character.PrimaryPart.Position
+
+        if playerPosition then
+            local currentItemsInProximity = {}
+            
+            for _, container in pairs({AllAmmo, AllMeds, AllBarbedWire, AllMisc}) do
+                for _, item in pairs(container:GetChildren()) do
+                    if item:IsA("Model") and isItemInProximity(item, playerPosition) then
+                        fixItemForPickup(item)
+                        currentItemsInProximity[item] = true
+                    end
+                end
+            end
+
+            -- Handle items exiting the proximity
+            for item, highlight in pairs(itemHighlights) do
+                if not currentItemsInProximity[item] then
+                    -- Call your custom ReParent function here
+                    ReParentByFullName(item) -- Use your own ReParent function
+                    -- Remove the Highlight
+                    if highlight then
+                        highlight:Destroy()
+                        itemHighlights[item] = nil
+                    end
+                end
+            end
+
+            -- Add new items to the highlights table
+            for _, container in pairs({AllAmmo, AllMeds, AllBarbedWire, AllMisc}) do
+                for _, item in pairs(container:GetChildren()) do
+                    if item:IsA("Model") and currentItemsInProximity[item] and not itemHighlights[item] then
+                        -- Create the Highlight
+                        local highlight = Instance.new("Highlight", item)
+                        itemHighlights[item] = highlight
+                    end
+                end
+            end
+        end
+
+        wait(0.5)
+    end
+end
+
+
 
 local function ItemEsp()
-
     for i, v in pairs(itemsHolder:GetChildren()) do
         if v.Name ~= "AllZombie" and v.Name ~= "AllAmmo" and v.Name ~= "AllBarbedWire" and v.Name ~= "AllMisc" then 
             ReParentByFullName(v)
             NameItem(v)
         end
     end
-
 
     AmmoEsp.Adornee = AllAmmo
     MedsEsp.Adornee = AllMeds
@@ -193,12 +277,11 @@ local function ItemEsp()
     MedsEsp.FillColor = Color3.fromRGB(255, 0, 0)
     MedsEsp.OutlineColor = Color3.fromRGB(255, 0, 0)
     BWEsp.FillColor = Color3.fromRGB(255, 255, 0)
-    MedsEsp.OutlineColor = Color3.fromRGB(255, 255, 0)
+    BWEsp.OutlineColor = Color3.fromRGB(255, 255, 0)
     MiscEsp.FillColor = Color3.fromRGB(0, 0, 0)
     MiscEsp.OutlineColor = Color3.fromRGB(120,120,120)
 
     itemsHolder.ChildAdded:Connect(function(child)
-
         local function processChild()
             wait(0.5) 
             if child.Parent == itemsHolder then
@@ -209,8 +292,7 @@ local function ItemEsp()
         coroutine.wrap(processChild)()
     end)
 
-    
-
+    coroutine.wrap(updateProximity)()
 end
 
 local function ZombieEsp()
@@ -219,14 +301,16 @@ local function ZombieEsp()
     ZomEsp.FillTransparency = 1
     ZomEsp.OutlineColor = Color3.fromRGB(255, 0, 0)
 
-
     for i, v in pairs(zombiesHolder:GetChildren()) do
         if v.Name ~= "AllZombies" then 
             ReParentByFullName(v)
+
+            if v.Name == "Juggernaut" then
+                NamePlayer(v)
+            end
         end
     end
 
-   
     zombiesHolder.ChildAdded:Connect(function(child)
         local function processChild()
             wait(0.5) 
@@ -238,7 +322,6 @@ local function ZombieEsp()
         coroutine.wrap(processChild)()
     end)
 end
-
 
 local function PlayerEsp()
     PlrEsp.Adornee = AllPlrs
@@ -265,6 +348,70 @@ local function PlayerEsp()
 end
 
 
+
+local DISTANCE_TO_SHOW_TRACER = 500 -- Distance in studs within which tracers will be visible
+local MAX_DISTANCE = 500 -- Maximum distance at which tracers will still be drawn (for objects that are off-screen)
+
+local function createTracer()
+    local tracer = Drawing.new("Line")
+    tracer.Visible = false
+    tracer.Color = Color3.fromRGB(255, 255, 255)
+    tracer.Thickness = 1
+    tracer.Transparency = 1
+    return tracer
+end
+
+local function updateTracer(tracer, zombie)
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if zombie:FindFirstChild("HumanoidRootPart") then
+            local zombiePosition = zombie.HumanoidRootPart.Position
+            local playerPosition = humanoidRootPart.Position
+            local distance = (zombiePosition - playerPosition).magnitude
+
+            -- Update tracer visibility based on distance
+            if distance <= DISTANCE_TO_SHOW_TRACER or distance <= MAX_DISTANCE then
+                local screenPosition, onScreen = camera:worldToViewportPoint(zombiePosition)
+
+                -- Update tracer position whether the object is on screen or off screen
+                if distance <= MAX_DISTANCE then
+                    local screenPos = onScreen and Vector2.new(screenPosition.X, screenPosition.Y) or Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 1.2)
+                    tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 1.2)
+                    tracer.To = screenPos
+                    tracer.Visible = true
+                else
+                    tracer.Visible = false
+                end
+            else
+                tracer.Visible = false
+            end
+        else
+            tracer.Visible = false
+        end
+    end)
+end
+
+local function ZombieTracers()
+    for _, zombie in pairs(AllZombies:GetChildren()) do
+        if zombie:FindFirstChild("HumanoidRootPart") then
+            local tracer = createTracer()
+            updateTracer(tracer, zombie)
+        end
+    end
+end
+
+local function TracersOn()
+    ZombieTracers()
+
+    AllZombies.ChildAdded:Connect(function(zombie)
+        if zombie:FindFirstChild("HumanoidRootPart") then
+            local tracer = createTracer()
+            updateTracer(tracer, zombie)
+        end
+    end)
+end
+
+
 ItemEsp()
 ZombieEsp()
 PlayerEsp()
+TracersOn()
