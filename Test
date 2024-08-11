@@ -1,0 +1,270 @@
+local plr = game.Players.LocalPlayer
+local itemsHolder = game.Workspace.Ignore.Items
+local zombiesHolder = game.Workspace.Entities.Infected
+
+local EspScreen = Instance.new("ScreenGui", game.CoreGui)
+EspScreen.Name = "EspScreen"
+
+local EspHolder = Instance.new("Folder", EspScreen)
+EspHolder.Name = "Esp Holder"
+
+local Esps = Instance.new("Folder", EspHolder)
+Esps.Name = "Esps"
+
+local Names = Instance.new("Folder", EspHolder)
+Names.Name = "Names"
+
+local Items1 = Instance.new("Folder", Esps)
+Items1.Name = "Items"
+
+local Items2 = Instance.new("Folder", Names)
+Items2.Name = "Names"
+
+local Zombies1 = Instance.new("Folder", Esps)
+Zombies1.Name = "Zombies"
+
+local Players1 = Instance.new("Folder", Esps)
+Players1.Name = "Players"
+
+local Players2 = Instance.new("Folder", Names)
+Players2.Name = "Players"
+
+local AllPlrs = Instance.new("Model", game.Workspace)
+local AllZombies = Instance.new("Model", zombiesHolder)
+
+local AllAmmo = Instance.new("Model", itemsHolder)
+local AllMeds = Instance.new("Model", itemsHolder)
+local AllBarbedWire = Instance.new("Model", itemsHolder)
+local AllMisc = Instance.new("Model", itemsHolder)
+
+AllPlrs.Name = "AllPlayers"
+AllZombies.Name = "AllZombies"
+AllAmmo.Name = "AllAmmo"
+AllMeds.Name = "AllMeds"
+AllBarbedWire.Name = "AllBarbedWire"
+AllMisc.Name = "AllMisc"
+
+local AmmoEsp = Instance.new("Highlight", Items1)
+local MedsEsp = Instance.new("Highlight", Items1)
+local BWEsp = Instance.new("Highlight", Items1)
+local MiscEsp = Instance.new("Highlight", Items1)
+
+local ZomEsp = Instance.new("Highlight", Zombies1)
+local PlrEsp = Instance.new("Highlight", Players1)
+
+
+local function ReParentByFullName(item)
+    local targetParent = nil
+
+    if item.Parent == game.Workspace then 
+        targetParent = AllPlrs
+    elseif item.Parent == zombiesHolder then
+        targetParent = AllZombies
+    elseif item.Parent == itemsHolder then
+        if item.Name == "Ammo" then
+            targetParent = AllAmmo
+        elseif item.Name == "Bandages" or item.Name == "Medkit" then
+            targetParent = AllMeds
+        elseif item.Name == "Barbed Wire" then
+            targetParent = AllBarbedWire
+        elseif item.Name ~= "AllAmmo" and item.Name ~= "AllMeds" and item.Name ~= "AllBarbedWire" then 
+            targetParent = AllMisc
+        end
+    end
+
+    if targetParent and item.Parent ~= targetParent then
+        if targetParent.Parent then
+
+            local success, err = pcall(function()
+                item.Parent = targetParent
+            end)
+
+            if not success then
+                warn("Failed to reparent item:", item:GetFullName(), "Error:", err)
+            end
+        else
+            warn("Target parent is invalid:", targetParent:GetFullName())
+        end
+    end
+end
+
+local function NameItem(n)
+    if n.Name == "AllMeds" or n.Name == "AllAmmo" or n.Name == "AllBarbedWire" or n.Name == "AllMisc" then 
+        return
+    else 
+        local name = Instance.new("BillboardGui", Items2)
+
+        name.Name = n.Name
+        name.Adornee = n
+        name.Size = UDim2.new(4,0,1,0)
+        name.SizeOffset = Vector2.new(0,-1)
+        name.AlwaysOnTop = true
+
+        local text = Instance.new("TextLabel", name)
+        text.BackgroundTransparency = 1
+        text.AnchorPoint = Vector2.new(.5,0.5)
+        text.Position = UDim2.new(.5,0,.5,0)
+        text.Size = UDim2.new(1,0,1,0)
+
+        text.FontFace = Font.fromEnum(Enum.Font.Ubuntu)
+        text.TextScaled = true
+        text.TextColor3 = Color3.new(1, 1, 1) 
+
+        text.Text = n.Name
+    end
+end
+
+local function NamePlayer(n)
+    local name = Instance.new("BillboardGui", Players2)
+
+    name.Name = n.Name
+    name.Adornee = n.Head
+    name.Size = UDim2.new(4,0,1,0)
+    name.SizeOffset = Vector2.new(0,1.5)
+    name.AlwaysOnTop = true
+
+    local text = Instance.new("TextLabel", name)
+    text.BackgroundTransparency = 1
+    text.AnchorPoint = Vector2.new(.5,0.5)
+    text.Position = UDim2.new(.5,0,.5,0)
+    text.Size = UDim2.new(1,0,1,0)
+
+    text.FontFace = Font.fromEnum(Enum.Font.Ubuntu)
+    text.TextScaled = true
+    text.TextColor3 = Color3.new(1, 1, 1) 
+
+    text.Text = n.Name
+end
+
+
+local function UpdateItemEsp(item)
+
+    AmmoEsp.Adornee = nil
+    MedsEsp.Adornee = nil
+    BWEsp.Adornee = nil
+    MiscEsp.Adornee = nil
+
+
+    ReParentByFullName(item)
+    NameItem(item)
+
+    AmmoEsp.Adornee = AllAmmo
+    MedsEsp.Adornee = AllMeds
+    BWEsp.Adornee = AllBarbedWire
+    MiscEsp.Adornee = AllMisc
+end
+
+local function UpdateZombieEsp(n)
+
+    ZomEsp.Adornee = nil
+
+
+    ReParentByFullName(n)
+
+    ZomEsp.Adornee = AllZombies   
+end
+
+local function UpdatePlayerEsp(n)
+    PlrEsp.Adornee = nil
+    
+    ReParentByFullName(n)
+    NamePlayer(n)
+
+    PlrEsp.Adornee = AllPlrs
+end
+
+
+local function ItemEsp()
+
+    for i, v in pairs(itemsHolder:GetChildren()) do
+        if v.Name ~= "AllZombie" and v.Name ~= "AllAmmo" and v.Name ~= "AllBarbedWire" and v.Name ~= "AllMisc" then 
+            ReParentByFullName(v)
+            NameItem(v)
+        end
+    end
+
+
+    AmmoEsp.Adornee = AllAmmo
+    MedsEsp.Adornee = AllMeds
+    BWEsp.Adornee = AllBarbedWire
+    MiscEsp.Adornee = AllMisc
+
+    AmmoEsp.FillColor = Color3.fromRGB(255, 255, 255)
+    MedsEsp.FillColor = Color3.fromRGB(255, 0, 0)
+    MedsEsp.OutlineColor = Color3.fromRGB(255, 0, 0)
+    BWEsp.FillColor = Color3.fromRGB(255, 255, 0)
+    Medsesp.OutlineColor = Color3.fromRGB(255, 255, 0)
+    MiscEsp.FillColor = Color3.fromRGB(0, 0, 0)
+    MiscEsp.OutlineColor = Color3.fromRGB(120,120,120)
+
+    itemsHolder.ChildAdded:Connect(function(child)
+
+        local function processChild()
+            wait(0.5) 
+            if child.Parent == itemsHolder then
+                UpdateItemEsp(child)
+            end
+        end
+        
+        coroutine.wrap(processChild)()
+    end)
+
+    
+
+end
+
+local function ZombieEsp()
+    ZomEsp.Adornee = AllZombies
+
+    ZomEsp.FillTransparency = 1
+    ZomEsp.OutlineColor = Color3.fromRGB(255, 0, 0)
+
+
+    for i, v in pairs(zombiesHolder:GetChildren()) do
+        if v.Name ~= "AllZombies" then 
+            ReParentByFullName(v)
+        end
+    end
+
+   
+    zombiesHolder.ChildAdded:Connect(function(child)
+        local function processChild()
+            wait(0.5) 
+            if child.Parent == zombiesHolder then
+                UpdateZombieEsp(child)
+            end
+        end
+    
+        coroutine.wrap(processChild)()
+    end)
+end
+
+
+local function PlayerEsp()
+    PlrEsp.Adornee = AllPlrs
+    PlrEsp.FillTransparency = 0.5
+    PlrEsp.FillColor = Color3.fromRGB(35,131,215)
+    PlrEsp.OutlineColor = Color3.fromRGB(167,207,242)
+
+    for i, v in pairs(game.Workspace:GetChildren()) do 
+        if v:IsA("Model") and v.Name ~= "Spawn Lobby" and v.Name ~= plr.Name and v.Name ~= "AllPlayers" then
+            ReParentByFullName(v)
+            NamePlayer(v)
+        end
+    end
+
+    game.Workspace.ChildAdded:Connect(function(child)
+        local function processChild()
+            wait(0.5)
+            if child.Parent == game.Workspace and child:IsA("Model") and child.Name ~= "Spawn Lobby" and child.Name ~= plr.Name then
+                UpdatePlayerEsp(child)
+            end
+        end
+        coroutine.wrap(processChild)()
+    end)
+end
+
+
+ItemEsp()
+ZombieEsp()
+PlayerEsp()
